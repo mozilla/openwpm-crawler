@@ -1,0 +1,91 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: openwpm-crawl-2
+spec:
+  # adjust for parallelism
+  parallelism: 5
+  backoffLimit: 10000 # to avoid crawls failing due to sporadic worker crashes
+  template:
+    metadata:
+      name: openwpm-crawl
+    spec:
+      volumes:
+        - name: dshm
+          emptyDir:
+            medium: Memory
+      containers:
+      - name: openwpm-crawl
+        image: gcr.io/srg-team-sandbox/openwpm:ff78-js-instrumentation-17830d4-screenshot
+        command: ["python3"]
+        args: ["crawler.py"]
+        volumeMounts:
+          - mountPath: /dev/shm
+            name: dshm
+        env:
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-config
+              key: aws_access_key_id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-config
+              key: aws_secret_access_key
+        - name: REDIS_HOST
+          value: '10.37.243.83'
+        - name: REDIS_QUEUE_NAME
+          value: 'crawl-queue-2'
+        - name: CRAWL_DIRECTORY
+          value: '2020-05-23_jsInstrumentationTests_5'
+        - name: S3_BUCKET
+          value: 'openwpm-data'
+        - name: DISPLAY_MODE
+          value: 'xvfb'
+        - name: HTTP_INSTRUMENT
+          value: '1'
+        - name: COOKIE_INSTRUMENT
+          value: '1'
+        - name: NAVIGATION_INSTRUMENT
+          value: '1'
+        - name: JS_INSTRUMENT
+          value: '1'
+        - name: CALLSTACK_INSTRUMENT
+          value: '1'
+        - name: JS_INSTRUMENT_MODULES
+          value: >
+            [
+                "fingerprinting"
+            ]
+        - name: DWELL_TIME
+          value: '15'
+        - name: TIMEOUT
+          value: '30'
+        - name: SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              name: sentry-config
+              key: sentry_dsn
+        - name: LOG_LEVEL_CONSOLE
+          value: 'DEBUG'
+        - name: LOG_LEVEL_FILE
+          value: 'DEBUG'
+        - name: LOG_LEVEL_SENTRY_BREADCRUMB
+          value: 'DEBUG'
+        - name: LOG_LEVEL_SENTRY_EVENT
+          value: 'ERROR'
+        - name: MAX_JOB_RETRIES
+          value: '2'
+        resources:
+          # these are taken at face value by the autoscaler, so they should match actual
+          # resources required by any single instance/container as good as possible
+          # see: https://cloud.google.com/kubernetes-engine/docs/concepts/cluster-autoscaler
+          # tip: observe `kubectl top nodes` during auto-scaled crawls to get an idea of how
+          # resources are being utilized
+          requests:
+            cpu: 750m
+            memory: 1000Mi
+          limits:
+            cpu: 2
+      restartPolicy: OnFailure
