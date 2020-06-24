@@ -49,6 +49,13 @@ spec:
           value: '1'
         - name: JS_INSTRUMENT
           value: '1'
+        - name: JS_INSTRUMENT_MODULES
+          value: >
+            [
+                "fingerprinting"
+            ]
+        - name: CALLSTACK_INSTRUMENT
+          value: '1'
         - name: SAVE_CONTENT
           value: 'script'
         - name: DWELL_TIME
